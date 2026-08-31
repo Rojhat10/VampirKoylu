@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vampir Köylü - Otomatik Oyun Motoru</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    
+    <!-- 1. ANA MENÜ -->
+    <div class="container" id="main-menu">
+        <h1>Vampir Köylü</h1>
+        <div class="menu-buttons">
+            <button id="btnContinue" onclick="oyunaDevamEt()" style="display: none; background-color: #4caf50;">Oyuna Devam Et</button>
+            <button onclick="ekranGoster('join-menu')">Oyuna Katıl</button>
+            <button onclick="ekranGoster('mod-setup')" style="background-color: #f9d342; color: #1a1a2e;">Yeni Oyun Kur (Moderatör)</button>
+        </div>
+    </div>
+
+    <!-- 2. OYUNA KATIL / LOBİ EKRANI -->
+    <div class="container" id="join-menu" style="display: none;">
+        <h2>Odalar</h2>
+        <div id="room-list" class="room-list"><p style="font-size: 0.9em; color: #aaa;">Aktif oda aranıyor...</p></div>
+        <hr style="border-color: #333; margin: 20px 0;">
+        <h3>Özel Koda Katıl</h3>
+        <input type="text" id="roomCode" placeholder="Oda Kodu (Örn: 1001)" maxlength="4" autocomplete="off">
+        <input type="text" id="playerName" placeholder="Adınız" autocomplete="off">
+        <button onclick="oyunaKatil()">Odaya Gir</button>
+        <button onclick="ekranGoster('main-menu')" style="background-color: #555; margin-top: 10px;">Geri Dön</button>
+        <p id="hataMesaji" style="color: #ff6b6b; display: none;">Lütfen adınızı ve kodu girin!</p>
+    </div>
+
+    <!-- 3. MODERATÖR KURULUM EKRANI (Dinamik Sayılı) -->
+    <div class="container" id="mod-setup" style="display: none;">
+        <h2>Oyun Ayarları</h2>
+        <input type="text" id="modRoomCode" placeholder="Oda Kodu (Örn: 1001)" maxlength="4">
+        
+        <div class="settings-box">
+            <h3>Rol Dağılımı (Kişi Sayısı)</h3>
+            <div class="role-input-group">
+                <label>Vampir:</label> <input type="number" id="count-vampire" value="1" min="1" max="10">
+            </div>
+            <div class="role-input-group">
+                <label>Doktor:</label> <input type="number" id="count-doctor" value="1" min="0" max="5">
+            </div>
+            <div class="role-input-group">
+                <label>Büyücü:</label> <input type="number" id="count-seer" value="1" min="0" max="5">
+            </div>
+            <div class="role-input-group">
+                <label>Şerif:</label> <input type="number" id="count-sheriff" value="1" min="0" max="5">
+            </div>
+            <div class="role-input-group">
+                <label>İntikamcı:</label> <input type="number" id="count-avenger" value="1" min="0" max="5">
+            </div>
+            <div class="role-input-group">
+                <label>Soytarı:</label> <input type="number" id="count-jester" value="1" min="0" max="5">
+            </div>
+        </div>
+        <button onclick="odaKur()" style="background-color: #f9d342; color: #1a1a2e;">Odayı Aç</button>
+        <button onclick="ekranGoster('main-menu')" style="background-color: #555; margin-top: 10px;">Geri Dön</button>
+    </div>
+
+    <!-- 4. MODERATÖR KONTROL PANELİ -->
+    <div class="container" id="mod-dashboard" style="display: none; max-width: 700px; width: 95%;">
+        
+        <!-- Üst Bar: Gizli Bot ve Skor Butonu -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px;">
+            <h2 style="margin: 0;">Oda: <span id="dashRoomCode"></span></h2>
+            <div>
+                <button onclick="skorTablosuGoster()" style="width: auto; padding: 5px 10px; font-size: 12px; background: #3f72af;">🏆 Skorlar</button>
+                <button onclick="botOyuncuEkle()" style="width: auto; padding: 5px 10px; font-size: 12px; background: #333; color: #888;">🤖 Bot</button>
+            </div>
+        </div>
+        
+        <!-- Aksiyon Butonları -->
+        <div class="dashboard-controls" style="margin-top: 15px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <button onclick="yeniTurBaslat()" style="background-color: #4caf50; flex: 1;">Rol Dağıt (Yeni Başlangıç)</button>
+                <button onclick="geceyiBaslat()" id="btnGece" style="background-color: #2c3e50; flex: 1;">🌙 Gece Yap</button>
+                <button onclick="oylamaBaslat()" id="btnOylama" style="background-color: #f39c12; flex: 1; display: none;">☀️ Oylama Yap</button>
+            </div>
+            <!-- Turu Bitirme Butonu -->
+            <button onclick="turuBitir()" style="background-color: #8e44ad; width: 100%; margin-bottom: 10px;">🛑 Bu Turu Bitir (Oyuncuları Sıfırla)</button>
+        </div>
+
+        <!-- Katılım Bekleyenler -->
+        <div id="approval-section" style="display: none; background: #8e44ad; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 14px;">Katılım Bekleyenler var!</h3>
+            <div id="approval-list"></div>
+        </div>
+
+        <div class="status-box">
+            <h3 style="margin:0;">Durum: <span id="modZamanText" style="color:#f9d342;">Bekleme Salonu</span></h3>
+        </div>
+
+        <h3>Oyuncu Durumları (<span id="oyuncuSayisi">0</span>)</h3>
+        <div id="player-list-mod" class="player-grid"></div>
+        
+        <button onclick="oyunuBitir()" style="background-color: #ff4757; margin-top: 20px;">Odayı Tamamen Kapat</button>
+    </div>
+
+    <!-- 5. OYUNCU EKRANI -->
+    <div class="container" id="game-screen" style="display: none;">
+        <h2 id="welcomeText"></h2>
+        <div class="status-box">
+            <p id="statusText">Moderatör bekleniyor...</p>
+            <h3 id="roundText" style="color: #4caf50;">Tur: Bekleniyor</h3>
+            <h3 id="zamanText" style="color: #f9d342; margin-top:10px;">Gündüz</h3>
+        </div>
+        
+        <div id="roleBox" style="display: none; margin-top: 20px;">
+            <button id="viewRoleBtn" class="role-btn">Rolünü Görmek İçin Basılı Tut</button>
+            <h3 id="roleDisplay" style="display: none; margin-top: 15px; font-size: 24px; color: #f9d342;"></h3>
+        </div>
+        <button onclick="masadanKalk()" style="background-color: #ff4757; margin-top: 30px;">Masadan Kalk</button>
+    </div>
+
+    <!-- MODALLAR (Açılır Pencereler) -->
+    
+    <!-- Gece Seçim Modalı -->
+    <div id="action-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2 id="action-title">Seçim Yap</h2>
+            <p id="action-desc">Kimi seçeceksin?</p>
+            <div id="action-list" class="modal-list"></div>
+            <button id="btn-action-pass" onclick="geceSonrakiAdim(null)" style="background: #555; display: none;">Pas Geç</button>
+        </div>
+    </div>
+
+    <!-- İntikamcı Modalı -->
+    <div id="avenger-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="border: 2px solid #ff4757;">
+            <h2>⚠️ İntikamcı Öldü!</h2>
+            <p>İntikamcı yanında kimi götürecek?</p>
+            <div id="avenger-list" class="modal-list"></div>
+            <button onclick="intikamciPas()" style="background: #555;">Kimseyi Götürme</button>
+        </div>
+    </div>
+
+    <!-- Skor Tablosu Modalı -->
+    <div id="score-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>🏆 Skor Tablosu</h2>
+            <div id="score-list" class="modal-list" style="text-align: left;"></div>
+            <button onclick="document.getElementById('score-modal').style.display='none'" style="background: #ff4757;">Kapat</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
