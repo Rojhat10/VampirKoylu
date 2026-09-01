@@ -15,6 +15,8 @@ let geceGecmisi = { vampir: null, doktor: null, buyucu: null, serif: null, alfaK
 let geceAdimi = 0;
 let mevcutOyuncular = {};
 let odaKurallari = {};
+let aktifTur = 1;
+let rollerGizli = true; // Moderatör ekranında roller varsayılan olarak gizli
 
 function ekranGoster(ekranId) {
     const ekranlar = ['main-menu', 'join-menu', 'mod-setup', 'mod-dashboard', 'game-screen'];
@@ -65,38 +67,40 @@ function oyunaKatil() {
 function oyuncuEkraniniHazirla(code, name) {
     ekranGoster('game-screen');
     document.getElementById("welcomeText").innerText = "Hoş geldin, " + name + "!";
+    aktifOdaKodu = code; // Skor tablosu için odayı globalde tutalım
     
-    db.ref(`odalar/${code}/oyuncular/${name}`).on("value", snap => {
-        const data = snap.val();
-        if (data) {
-            if(data.durum === "Onay Bekliyor") {
-                document.getElementById("statusText").innerText = "Moderatörün seni alması bekleniyor...";
-                document.getElementById("roleBox").style.display = "none";
-            } else if(data.durum === "Ölü") {
-                document.getElementById("statusText").innerHTML = "<span style='color:red;'>ÖLDÜNÜZ!</span>";
-                document.getElementById("roleBox").style.display = "block";
-                document.getElementById("roleDisplay").innerText = data.rol;
-            } else if(data.durum === "Pasif") {
-                document.getElementById("statusText").innerText = "Moderatör tarafından mola/pasife alındın.";
-            } else if (data.rol !== "Belirlenmedi") {
-                document.getElementById("statusText").innerText = "Masadasın. Roller dağıtıldı!";
-                document.getElementById("roleBox").style.display = "block";
-                document.getElementById("roleDisplay").innerText = data.rol;
-            } else {
-                document.getElementById("statusText").innerText = "Masadasın. Rol bekleniyor.";
-                document.getElementById("roleBox").style.display = "none";
-            }
-        } else {
-            masadanKalk(); // Eğer mod sildiyse
-        }
-    });
-
+    // Hem oyuncunun kendi bilgisini hem de oda verilerini dinliyoruz
     db.ref(`odalar/${code}`).on("value", snap => {
         const oda = snap.val();
         if(oda) {
-            document.getElementById("roundText").innerText = "Tur: " + (oda.tur || 1);
+            mevcutOyuncular = oda.oyuncular || {}; // Puan tablosu oluşturmak için lazım
+            aktifTur = oda.tur || 1;
+            document.getElementById("roundText").innerText = "Tur: " + aktifTur;
             document.getElementById("zamanText").innerText = oda.zaman || "Bekleniyor";
             document.body.style.backgroundColor = (oda.zaman === "Gece") ? "#000000" : "#1a1a2e";
+            
+            const data = mevcutOyuncular[name];
+            if (data) {
+                if(data.durum === "Onay Bekliyor") {
+                    document.getElementById("statusText").innerText = "Moderatörün seni alması bekleniyor...";
+                    document.getElementById("roleBox").style.display = "none";
+                } else if(data.durum === "Ölü") {
+                    document.getElementById("statusText").innerHTML = "<span style='color:red;'>ÖLDÜNÜZ!</span>";
+                    document.getElementById("roleBox").style.display = "block";
+                    document.getElementById("roleDisplay").innerText = data.rol;
+                } else if(data.durum === "Pasif") {
+                    document.getElementById("statusText").innerText = "Moderatör tarafından mola/pasife alındın.";
+                } else if (data.rol !== "Belirlenmedi") {
+                    document.getElementById("statusText").innerText = "Masadasın. Roller dağıtıldı!";
+                    document.getElementById("roleBox").style.display = "block";
+                    document.getElementById("roleDisplay").innerText = data.rol;
+                } else {
+                    document.getElementById("statusText").innerText = "Masadasın. Rol bekleniyor.";
+                    document.getElementById("roleBox").style.display = "none";
+                }
+            } else {
+                masadanKalk(); // Eğer mod sildiyse
+            }
         }
     });
 }
@@ -120,55 +124,71 @@ function odaKur() {
     });
 }
 
+function toggleRolGizle() {
+    rollerGizli = !rollerGizli;
+    document.getElementById("btnRolGizle").innerHTML = rollerGizli ? "👁️ Rolleri Göster" : "🙈 Rolleri Gizle";
+    renderModPanel(); // Paneli hemen yeniden çiz
+}
+
 function modPaneliniDinle() {
     db.ref(`odalar/${aktifOdaKodu}`).on("value", snap => {
         const oda = snap.val();
         if(!oda) return;
         mevcutOyuncular = oda.oyuncular || {};
+        aktifTur = oda.tur || 1;
         if(oda.kurallar) odaKurallari = oda.kurallar;
         
         document.getElementById("modZamanText").innerText = oda.zaman;
-        const list = document.getElementById("player-list-mod");
-        const approvalList = document.getElementById("approval-list");
-        const approvalSec = document.getElementById("approval-section");
-        
-        list.innerHTML = ""; approvalList.innerHTML = "";
-        let onayBekleyenVar = false; let canliSayisi = 0;
-
-        Object.values(mevcutOyuncular).forEach(p => {
-            if(p.durum === "Onay Bekliyor") {
-                onayBekleyenVar = true;
-                approvalList.innerHTML += `
-                    <div class="approval-item">
-                        <span>${p.isim}</span>
-                        <div>
-                            <button onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')" style="background:#4caf50; padding:5px;">✔ Al</button>
-                            <button onclick="oyuncuSil('${p.isim}')" style="background:#ff4757; padding:5px;">✖ Sil</button>
-                        </div>
-                    </div>`;
-            } else {
-                if (p.durum === "Hayatta") canliSayisi++;
-                const sinif = p.durum === "Ölü" ? "olu" : (p.durum === "Pasif" ? "pasif" : "");
-                
-                // Mini Kontrol Butonları
-                let btnHtml = "";
-                if(p.durum === "Hayatta" || p.durum === "Ölü") {
-                    btnHtml += `<button class="mini-btn" style="background:#e67e22;" onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Pasif')">⏸ Pasife Al</button>`;
-                } else if(p.durum === "Pasif") {
-                    btnHtml += `<button class="mini-btn" style="background:#4caf50;" onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')">▶️ Aktif Et</button>`;
-                }
-                btnHtml += `<button class="mini-btn" style="background:#c0392b;" onclick="if(confirm('${p.isim} odadan tamamen atılsın mı?')) oyuncuSil('${p.isim}')">🗑 At</button>`;
-
-                list.innerHTML += `
-                    <div class="player-card ${sinif}">
-                        <h4>${p.isim}</h4><p>Rol: <b>${p.rol}</b> ${p.gaziCani ? '(🛡️)' : ''}</p><p>Durum: ${p.durum}</p>
-                        <div class="mini-btn-group">${btnHtml}</div>
-                    </div>`;
-            }
-        });
-        document.getElementById("oyuncuSayisi").innerText = canliSayisi;
-        approvalSec.style.display = onayBekleyenVar ? "block" : "none";
+        renderModPanel(); // UI Çizimini ayrı bir fonksiyona aldık
     });
+}
+
+function renderModPanel() {
+    const list = document.getElementById("player-list-mod");
+    const approvalList = document.getElementById("approval-list");
+    const approvalSec = document.getElementById("approval-section");
+    
+    list.innerHTML = ""; approvalList.innerHTML = "";
+    let onayBekleyenVar = false; let canliSayisi = 0;
+
+    Object.values(mevcutOyuncular).forEach(p => {
+        if(p.durum === "Onay Bekliyor") {
+            onayBekleyenVar = true;
+            approvalList.innerHTML += `
+                <div class="approval-item">
+                    <span>${p.isim}</span>
+                    <div>
+                        <button onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')" style="background:#4caf50; padding:5px;">✔ Al</button>
+                        <button onclick="oyuncuSil('${p.isim}')" style="background:#ff4757; padding:5px;">✖ Sil</button>
+                    </div>
+                </div>`;
+        } else {
+            if (p.durum === "Hayatta") canliSayisi++;
+            const sinif = p.durum === "Ölü" ? "olu" : (p.durum === "Pasif" ? "pasif" : "");
+            
+            // Mini Kontrol Butonları
+            let btnHtml = "";
+            if(p.durum === "Hayatta" || p.durum === "Ölü") {
+                btnHtml += `<button class="mini-btn" style="background:#e67e22;" onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Pasif')">⏸ Pasife Al</button>`;
+            } else if(p.durum === "Pasif") {
+                btnHtml += `<button class="mini-btn" style="background:#4caf50;" onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')">▶️ Aktif Et</button>`;
+            }
+            btnHtml += `<button class="mini-btn" style="background:#c0392b;" onclick="if(confirm('${p.isim} odadan tamamen atılsın mı?')) oyuncuSil('${p.isim}')">🗑 At</button>`;
+
+            // Rol gizleme kontrolü
+            let gosterilecekRol = rollerGizli ? (p.rol === "Belirlenmedi" ? "Belirlenmedi" : "***") : p.rol;
+
+            list.innerHTML += `
+                <div class="player-card ${sinif}">
+                    <h4>${p.isim}</h4>
+                    <p>Rol: <b>${gosterilecekRol}</b> ${p.gaziCani && !rollerGizli ? '(🛡️)' : ''}</p>
+                    <p>Durum: ${p.durum}</p>
+                    <div class="mini-btn-group">${btnHtml}</div>
+                </div>`;
+        }
+    });
+    document.getElementById("oyuncuSayisi").innerText = canliSayisi;
+    approvalSec.style.display = onayBekleyenVar ? "block" : "none";
 }
 
 function oyuncuGuncelle(isim, alan, deger) { db.ref(`odalar/${aktifOdaKodu}/oyuncular/${isim}`).update({ [alan]: deger }); }
@@ -205,13 +225,22 @@ function oyunBittiIsle(sonucTip) {
         if(p.durum !== "Onay Bekliyor" && p.durum !== "Pasif") {
             guncellemeler[`oyuncular/${isim}/durum`] = "Hayatta";
             guncellemeler[`oyuncular/${isim}/rol`] = "Belirlenmedi";
-            if(sonucTip === 1 && (p.rol === "Vampir" || p.rol === "Alfa Vampir")) guncellemeler[`oyuncular/${isim}/puan`] = (p.puan || 0) + 10;
-            if(sonucTip === 2 && p.rol !== "Vampir" && p.rol !== "Alfa Vampir" && p.rol !== "Soytarı") guncellemeler[`oyuncular/${isim}/puan`] = (p.puan || 0) + 10;
+            
+            let kazanilan = 0;
+            if(sonucTip === 1 && (p.rol === "Vampir" || p.rol === "Alfa Vampir")) kazanilan = 10;
+            if(sonucTip === 2 && p.rol !== "Vampir" && p.rol !== "Alfa Vampir" && p.rol !== "Soytarı") kazanilan = 10;
+
+            // Eğer iptal edildiyse (0) puan eklenmez ve o tur pas geçilmiş olur
+            if(kazanilan > 0) {
+                guncellemeler[`oyuncular/${isim}/puan`] = (p.puan || 0) + kazanilan;
+                let mevcutTurPuani = (p.turPuanlari && p.turPuanlari[`tur_${aktifTur}`]) ? p.turPuanlari[`tur_${aktifTur}`] : 0;
+                guncellemeler[`oyuncular/${isim}/turPuanlari/tur_${aktifTur}`] = mevcutTurPuani + kazanilan;
+            }
         }
     });
     guncellemeler["zaman"] = "Bekleme Salonu";
     guncellemeler["kurallar/alfaKullandi"] = false; // Alfa reset
-    db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert("Oyun sıfırlandı."));
+    db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert(sonucTip === 0 ? "Tur iptal edildi (Puan Yok)." : "Oyun bitti puanlar dağıtıldı."));
 }
 
 function yeniTurBaslat() {
@@ -319,8 +348,10 @@ function geceSonrakiAdim(secilenIsim) {
 function geceyiBitirVeHesapla() {
     pencereKapat('action-modal');
     let olenler = []; let guncellemeler = {}; let intikamciOlduMu = null;
+    let artislar = {}; // Gece kazanılan puanları önce burada biriktiriyoruz (aynı kişi birden fazla kez puan alabilir diye)
+
     const getRole = (isim) => mevcutOyuncular[isim] ? mevcutOyuncular[isim].rol : null;
-    const addScore = (isim, p) => { if(mevcutOyuncular[isim]) guncellemeler[`oyuncular/${isim}/puan`] = (mevcutOyuncular[isim].puan || 0) + p; }
+    const addScore = (isim, p) => { artislar[isim] = (artislar[isim] || 0) + p; }
 
     // 1. Şerif Vuruşu
     if (geceGecmisi.serif) {
@@ -367,6 +398,14 @@ function geceyiBitirVeHesapla() {
         }
     }
 
+    // Puanları veritabanı güncellemesine aktar
+    Object.keys(artislar).forEach(isim => {
+        let artis = artislar[isim];
+        guncellemeler[`oyuncular/${isim}/puan`] = (mevcutOyuncular[isim].puan || 0) + artis;
+        let mevcutTP = (mevcutOyuncular[isim].turPuanlari && mevcutOyuncular[isim].turPuanlari[`tur_${aktifTur}`]) ? mevcutOyuncular[isim].turPuanlari[`tur_${aktifTur}`] : 0;
+        guncellemeler[`oyuncular/${isim}/turPuanlari/tur_${aktifTur}`] = mevcutTP + artis;
+    });
+
     olenler.forEach(isim => {
         guncellemeler[`oyuncular/${isim}/durum`] = "Ölü";
         if(getRole(isim) === "İntikamcı") intikamciOlduMu = isim;
@@ -399,10 +438,21 @@ function oylamaBitti(asilanIsim) {
     pencereKapat('action-modal');
     if(!asilanIsim) return alert("Oylama pas geçildi.");
 
-    let rol = mevcutOyuncular[asilanIsim].rol;
-    db.ref(`odalar/${aktifOdaKodu}/oyuncular/${asilanIsim}`).update({durum: "Ölü"});
-    if(rol === "Soytarı") { db.ref(`odalar/${aktifOdaKodu}/oyuncular/${asilanIsim}/puan`).transaction(p=>(p||0)+25); alert("SOYTARI ASILDI! Oyun Bitti (Soytarı Kazandı)"); }
-    else if(rol === "İntikamcı") intikamciArayuzuGoster();
+    let p = mevcutOyuncular[asilanIsim];
+    let rol = p.rol;
+    
+    let guncellemeler = { [`oyuncular/${asilanIsim}/durum`]: "Ölü" };
+    
+    if(rol === "Soytarı") { 
+        guncellemeler[`oyuncular/${asilanIsim}/puan`] = (p.puan || 0) + 25;
+        let mp = p.turPuanlari && p.turPuanlari[`tur_${aktifTur}`] ? p.turPuanlari[`tur_${aktifTur}`] : 0;
+        guncellemeler[`oyuncular/${asilanIsim}/turPuanlari/tur_${aktifTur}`] = mp + 25;
+        db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert("SOYTARI ASILDI! Oyun Bitti (Soytarı Kazandı)"));
+    } else {
+        db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => {
+            if(rol === "İntikamcı") intikamciArayuzuGoster();
+        });
+    }
 }
 
 function intikamciArayuzuGoster() {
@@ -413,17 +463,55 @@ function intikamciArayuzuGoster() {
 function intikamciPas() { pencereKapat('avenger-modal'); }
 function intikamciVurdu(hedefIsim) {
     pencereKapat('avenger-modal');
-    db.ref(`odalar/${aktifOdaKodu}/oyuncular/${hedefIsim}`).update({durum: "Ölü"});
     let intikamciPuan = (mevcutOyuncular[hedefIsim].rol.includes("Vampir")) ? 5 : -5;
-    Object.values(mevcutOyuncular).filter(p=>p.rol==="İntikamcı").forEach(i => db.ref(`odalar/${aktifOdaKodu}/oyuncular/${i.isim}/puan`).transaction(p=>(p||0)+intikamciPuan));
-    alert(`İntikamcı ${hedefIsim} adlı kişiyi yanında götürdü!`);
+    let guncellemeler = { [`oyuncular/${hedefIsim}/durum`]: "Ölü" };
+    
+    Object.values(mevcutOyuncular).filter(p=>p.rol==="İntikamcı").forEach(i => {
+        guncellemeler[`oyuncular/${i.isim}/puan`] = (i.puan || 0) + intikamciPuan;
+        let mevcutP = i.turPuanlari && i.turPuanlari[`tur_${aktifTur}`] ? i.turPuanlari[`tur_${aktifTur}`] : 0;
+        guncellemeler[`oyuncular/${i.isim}/turPuanlari/tur_${aktifTur}`] = mevcutP + intikamciPuan;
+    });
+
+    db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => {
+        alert(`İntikamcı ${hedefIsim} adlı kişiyi yanında götürdü!`);
+    });
 }
 
 function skorTablosuGoster() {
-    const list = document.getElementById("score-list"); list.innerHTML = "";
-    Object.values(mevcutOyuncular).sort((a,b) => (b.puan||0) - (a.puan||0)).forEach(p => {
-        list.innerHTML += `<div style="margin-bottom:10px; font-size:18px;"><b>${p.isim}</b>: <span style="color:#f9d342">${p.puan||0} Puan</span></div>`;
+    const list = document.getElementById("score-list"); 
+    list.innerHTML = "";
+    
+    // 1. Oynanmış (puan verilmiş) tüm turları tespit et
+    let butunTurlar = new Set();
+    let siraliOyuncular = Object.values(mevcutOyuncular).sort((a,b) => (b.puan||0) - (a.puan||0));
+    
+    siraliOyuncular.forEach(p => {
+        if(p.turPuanlari) Object.keys(p.turPuanlari).forEach(k => butunTurlar.add(k));
     });
+
+    // Turları sayısal olarak sırala (tur_1, tur_2, tur_4...)
+    let turListesi = Array.from(butunTurlar).sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+
+    if(turListesi.length === 0) {
+        list.innerHTML = "<p>Henüz kimse puan kazanmamış.</p>";
+    } else {
+        // Tabloyu oluştur
+        let html = `<div style="overflow-x:auto;"><table class="score-table"><thead><tr><th>Oyuncu</th>`;
+        turListesi.forEach(t => { html += `<th>${t.split('_')[1]}. Tur</th>`; });
+        html += `<th>Toplam</th></tr></thead><tbody>`;
+
+        siraliOyuncular.forEach(p => {
+            html += `<tr><td style="text-align:left;"><b>${p.isim}</b></td>`;
+            turListesi.forEach(t => {
+                let turPuani = p.turPuanlari ? (p.turPuanlari[t] || 0) : 0;
+                html += `<td>${turPuani}</td>`;
+            });
+            html += `<td><b style="color:#f9d342; font-size:16px;">${p.puan||0}</b></td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        list.innerHTML = html;
+    }
+
     document.getElementById("score-modal").style.display = "flex";
 }
 

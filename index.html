@@ -93,7 +93,11 @@
             <h3 style="margin:0;">Durum: <span id="modZamanText" style="color:#f9d342;">Bekleme Salonu</span></h3>
         </div>
 
-        <h3>Oyuncu Durumları (<span id="oyuncuSayisi">0</span>)</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+            <h3 style="margin: 0;">Oyuncu Durumları (<span id="oyuncuSayisi">0</span>)</h3>
+            <button onclick="toggleRolGizle()" id="btnRolGizle" style="width: auto; margin: 0; padding: 5px 10px; font-size: 12px; background: #555;">👁️ Rolleri Göster</button>
+        </div>
+        
         <div id="player-list-mod" class="player-grid"></div>
         
         <button onclick="oyunuKompleKapat()" style="background-color: #ff4757; margin-top: 20px;">Odayı Tamamen Kapat</button>
@@ -112,7 +116,11 @@
             <button id="viewRoleBtn" class="role-btn">Rolünü Görmek İçin Basılı Tut</button>
             <h3 id="roleDisplay" style="display: none; margin-top: 15px; font-size: 24px; color: #f9d342;"></h3>
         </div>
-        <button onclick="masadanKalk()" style="background-color: #ff4757; margin-top: 30px;">Masadan Kalk</button>
+
+        <!-- Oyuncu Ekranı Skor Butonu -->
+        <button onclick="skorTablosuGoster()" style="background-color: #3f72af; margin-top: 20px;">🏆 Puan Durumunu Gör</button>
+        
+        <button onclick="masadanKalk()" style="background-color: #ff4757; margin-top: 10px;">Masadan Kalk</button>
     </div>
 
     <!-- MODALLAR -->
@@ -154,12 +162,12 @@
         </div>
     </div>
 
-    <!-- Skor Modalı -->
+    <!-- Skor Modalı (Genişletildi) -->
     <div id="score-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 90%;">
             <span class="close-btn" onclick="pencereKapat('score-modal')">&times;</span>
-            <h2>🏆 Skor Tablosu</h2>
-            <div id="score-list" class="modal-list" style="text-align: left;"></div>
+            <h2>🏆 Detaylı Skor Tablosu</h2>
+            <div id="score-list" class="modal-list" style="text-align: center; max-height: 400px;"></div>
         </div>
     </div>
 

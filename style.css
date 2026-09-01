@@ -31,7 +31,14 @@ button:hover { opacity: 0.9; }
 .modal-content { position: relative; background: #16213e; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
 .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: white; cursor: pointer; font-weight: bold; }
 .close-btn:hover { color: #ff4757; }
-.modal-list { max-height: 300px; overflow-y: auto; margin: 15px 0; }
+.modal-list { max-height: 400px; overflow-y: auto; margin: 15px 0; }
 .modal-item-btn { background: #0f3460; margin-bottom: 8px; padding: 10px; border-radius: 5px; text-align: left; }
 .modal-item-btn:hover { background: #3f72af; }
 .approval-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 8px; margin-bottom: 5px; border-radius: 5px; }
+
+/* YENİ SKOR TABLOSU TASARIMI */
+.score-table { width: 100%; border-collapse: collapse; margin-top: 10px; color: white; font-size: 14px; min-width: 300px; }
+.score-table th, .score-table td { border: 1px solid #333; padding: 8px; text-align: center; }
+.score-table th { background-color: #0f3460; color: #f9d342; font-size: 12px; white-space: nowrap; }
+.score-table tr:nth-child(even) { background-color: #1a1a2e; }
+.score-table td b { color: #4caf50; }
