@@ -16,7 +16,7 @@ let geceAdimi = 0;
 let mevcutOyuncular = {};
 let odaKurallari = {};
 let aktifTur = 1;
-let rollerGizli = true; // Moderatör ekranında roller varsayılan olarak gizli
+let rollerGizli = true; 
 
 function ekranGoster(ekranId) {
     const ekranlar = ['main-menu', 'join-menu', 'mod-setup', 'mod-dashboard', 'game-screen'];
@@ -67,18 +67,25 @@ function oyunaKatil() {
 function oyuncuEkraniniHazirla(code, name) {
     ekranGoster('game-screen');
     document.getElementById("welcomeText").innerText = "Hoş geldin, " + name + "!";
-    aktifOdaKodu = code; // Skor tablosu için odayı globalde tutalım
+    aktifOdaKodu = code; 
     
-    // Hem oyuncunun kendi bilgisini hem de oda verilerini dinliyoruz
     db.ref(`odalar/${code}`).on("value", snap => {
         const oda = snap.val();
         if(oda) {
-            mevcutOyuncular = oda.oyuncular || {}; // Puan tablosu oluşturmak için lazım
+            mevcutOyuncular = oda.oyuncular || {}; 
             aktifTur = oda.tur || 1;
             document.getElementById("roundText").innerText = "Tur: " + aktifTur;
             document.getElementById("zamanText").innerText = oda.zaman || "Bekleniyor";
             document.body.style.backgroundColor = (oda.zaman === "Gece") ? "#000000" : "#1a1a2e";
             
+            // YENİ: Skor Butonu Gizleme Mantığı (Oyun sırasında puanları bulamasınlar)
+            const scoreBtn = document.getElementById("btn-player-score");
+            if(oda.zaman === "Bekleme Salonu") {
+                scoreBtn.style.display = "block";
+            } else {
+                scoreBtn.style.display = "none";
+            }
+
             const data = mevcutOyuncular[name];
             if (data) {
                 if(data.durum === "Onay Bekliyor") {
@@ -99,7 +106,7 @@ function oyuncuEkraniniHazirla(code, name) {
                     document.getElementById("roleBox").style.display = "none";
                 }
             } else {
-                masadanKalk(); // Eğer mod sildiyse
+                masadanKalk(); 
             }
         }
     });
@@ -127,7 +134,7 @@ function odaKur() {
 function toggleRolGizle() {
     rollerGizli = !rollerGizli;
     document.getElementById("btnRolGizle").innerHTML = rollerGizli ? "👁️ Rolleri Göster" : "🙈 Rolleri Gizle";
-    renderModPanel(); // Paneli hemen yeniden çiz
+    renderModPanel(); 
 }
 
 function modPaneliniDinle() {
@@ -139,7 +146,7 @@ function modPaneliniDinle() {
         if(oda.kurallar) odaKurallari = oda.kurallar;
         
         document.getElementById("modZamanText").innerText = oda.zaman;
-        renderModPanel(); // UI Çizimini ayrı bir fonksiyona aldık
+        renderModPanel(); 
     });
 }
 
@@ -166,7 +173,6 @@ function renderModPanel() {
             if (p.durum === "Hayatta") canliSayisi++;
             const sinif = p.durum === "Ölü" ? "olu" : (p.durum === "Pasif" ? "pasif" : "");
             
-            // Mini Kontrol Butonları
             let btnHtml = "";
             if(p.durum === "Hayatta" || p.durum === "Ölü") {
                 btnHtml += `<button class="mini-btn" style="background:#e67e22;" onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Pasif')">⏸ Pasife Al</button>`;
@@ -175,7 +181,6 @@ function renderModPanel() {
             }
             btnHtml += `<button class="mini-btn" style="background:#c0392b;" onclick="if(confirm('${p.isim} odadan tamamen atılsın mı?')) oyuncuSil('${p.isim}')">🗑 At</button>`;
 
-            // Rol gizleme kontrolü
             let gosterilecekRol = rollerGizli ? (p.rol === "Belirlenmedi" ? "Belirlenmedi" : "***") : p.rol;
 
             list.innerHTML += `
@@ -230,7 +235,6 @@ function oyunBittiIsle(sonucTip) {
             if(sonucTip === 1 && (p.rol === "Vampir" || p.rol === "Alfa Vampir")) kazanilan = 10;
             if(sonucTip === 2 && p.rol !== "Vampir" && p.rol !== "Alfa Vampir" && p.rol !== "Soytarı") kazanilan = 10;
 
-            // Eğer iptal edildiyse (0) puan eklenmez ve o tur pas geçilmiş olur
             if(kazanilan > 0) {
                 guncellemeler[`oyuncular/${isim}/puan`] = (p.puan || 0) + kazanilan;
                 let mevcutTurPuani = (p.turPuanlari && p.turPuanlari[`tur_${aktifTur}`]) ? p.turPuanlari[`tur_${aktifTur}`] : 0;
@@ -239,36 +243,48 @@ function oyunBittiIsle(sonucTip) {
         }
     });
     guncellemeler["zaman"] = "Bekleme Salonu";
-    guncellemeler["kurallar/alfaKullandi"] = false; // Alfa reset
-    db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert(sonucTip === 0 ? "Tur iptal edildi (Puan Yok)." : "Oyun bitti puanlar dağıtıldı."));
+    guncellemeler["kurallar/alfaKullandi"] = false;
+    db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert(sonucTip === 0 ? "Tur iptal edildi (Puan Yok)." : "Oyun bitti puanlar dağıtıldı. Artık oyuncular puanlarını görebilir."));
+}
+
+// YENİ: KUSURSUZ KARIŞTIRMA (Fisher-Yates Algoritması)
+function rolleriKaristir(dizi) {
+    for (let i = dizi.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dizi[i], dizi[j]] = [dizi[j], dizi[i]];
+    }
+    return dizi;
 }
 
 function yeniTurBaslat() {
     if(!confirm("Yeni rolleri dağıtıp turu başlatmak istediğine emin misin?")) return;
-    yedekle('tur_basi'); // Tur başı yedeği al
+    yedekle('tur_basi'); 
     
     let aktifler = Object.keys(mevcutOyuncular).filter(k => mevcutOyuncular[k].durum === "Hayatta" || mevcutOyuncular[k].durum === "Ölü");
     let roller = [];
     
+    // YENİ: Değerleri artık moderatör panelindeki (dash-) inputlardan çekiyoruz
     const count = (id) => parseInt(document.getElementById(id).value) || 0;
-    for(let i=0; i<count("c-vampire"); i++) roller.push("Vampir");
-    for(let i=0; i<count("c-alpha"); i++) roller.push("Alfa Vampir");
-    for(let i=0; i<count("c-doctor"); i++) roller.push("Doktor");
-    for(let i=0; i<count("c-seer"); i++) roller.push("Büyücü");
-    for(let i=0; i<count("c-sheriff"); i++) roller.push("Şerif");
-    for(let i=0; i<count("c-avenger"); i++) roller.push("İntikamcı");
-    for(let i=0; i<count("c-jester"); i++) roller.push("Soytarı");
-    for(let i=0; i<count("c-mayor"); i++) roller.push("Muhtar");
-    for(let i=0; i<count("c-veteran"); i++) roller.push("Gazi");
+    for(let i=0; i<count("dash-vampire"); i++) roller.push("Vampir");
+    for(let i=0; i<count("dash-alpha"); i++) roller.push("Alfa Vampir");
+    for(let i=0; i<count("dash-doctor"); i++) roller.push("Doktor");
+    for(let i=0; i<count("dash-seer"); i++) roller.push("Büyücü");
+    for(let i=0; i<count("dash-sheriff"); i++) roller.push("Şerif");
+    for(let i=0; i<count("dash-avenger"); i++) roller.push("İntikamcı");
+    for(let i=0; i<count("dash-jester"); i++) roller.push("Soytarı");
+    for(let i=0; i<count("dash-mayor"); i++) roller.push("Muhtar");
+    for(let i=0; i<count("dash-veteran"); i++) roller.push("Gazi");
 
     while(roller.length < aktifler.length) roller.push("Köylü");
-    roller = roller.slice(0, aktifler.length).sort(() => Math.random() - 0.5);
+    
+    // YENİ: Zayıf Math.random yerine güçlü karıştırma kullanıyoruz
+    roller = rolleriKaristir(roller.slice(0, aktifler.length));
 
     let guncellemeler = {};
     aktifler.forEach((isim, idx) => {
         guncellemeler[`oyuncular/${isim}/rol`] = roller[idx];
         guncellemeler[`oyuncular/${isim}/durum`] = "Hayatta";
-        if(roller[idx] === "Gazi") guncellemeler[`oyuncular/${isim}/gaziCani`] = 1; // Gazi ekstra can
+        if(roller[idx] === "Gazi") guncellemeler[`oyuncular/${isim}/gaziCani`] = 1; 
     });
     
     db.ref(`odalar/${aktifOdaKodu}`).once("value").then(s => {
@@ -283,7 +299,7 @@ function yeniTurBaslat() {
 
 // --- GECE AKIŞI ---
 function geceyiBaslat() {
-    yedekle('son_islem'); // Olası hata için yedekle
+    yedekle('son_islem');
     db.ref(`odalar/${aktifOdaKodu}`).update({ zaman: "Gece" });
     geceGecmisi = { vampir: null, doktor: null, buyucu: null, serif: null, alfaKullandi: false };
     geceAdimi = 1;
@@ -348,18 +364,19 @@ function geceSonrakiAdim(secilenIsim) {
 function geceyiBitirVeHesapla() {
     pencereKapat('action-modal');
     let olenler = []; let guncellemeler = {}; let intikamciOlduMu = null;
-    let artislar = {}; // Gece kazanılan puanları önce burada biriktiriyoruz (aynı kişi birden fazla kez puan alabilir diye)
+    let artislar = {}; 
 
     const getRole = (isim) => mevcutOyuncular[isim] ? mevcutOyuncular[isim].rol : null;
     const addScore = (isim, p) => { artislar[isim] = (artislar[isim] || 0) + p; }
 
-    // 1. Şerif Vuruşu
+    // 1. Şerif Vuruşu (Zaten Soytarı mantığı doğru kurulmuştu)
     if (geceGecmisi.serif) {
         let hRol = getRole(geceGecmisi.serif);
         if (hRol.includes("Vampir") || hRol === "Soytarı") {
-            olenler.push(geceGecmisi.serif);
-            Object.values(mevcutOyuncular).filter(p=>p.rol==="Şerif").forEach(s => addScore(s.isim, 5));
+            olenler.push(geceGecmisi.serif); // Hedef Ölür
+            Object.values(mevcutOyuncular).filter(p=>p.rol==="Şerif").forEach(s => addScore(s.isim, 5)); // Şerif Puan alır
         } else {
+            // Yanlış hedef, şerif ölür
             Object.values(mevcutOyuncular).filter(p=>p.rol==="Şerif" && p.durum==="Hayatta").forEach(s => { olenler.push(s.isim); addScore(s.isim, -5); });
         }
     }
@@ -373,7 +390,6 @@ function geceyiBitirVeHesapla() {
     // 3. Vampir ve Doktor
     if (geceGecmisi.vampir) {
         let vHedef = geceGecmisi.vampir;
-        // Doktor Seçimini Kaydet
         if(geceGecmisi.doktor) {
             guncellemeler["kurallar/docGecmis/sonSecilen"] = geceGecmisi.doktor;
             if(getRole(geceGecmisi.doktor) === "Doktor") guncellemeler["kurallar/docGecmis/kendiSecimiKaldi"] = (odaKurallari.docGecmis?.kendiSecimiKaldi || 1) - 1;
@@ -398,7 +414,6 @@ function geceyiBitirVeHesapla() {
         }
     }
 
-    // Puanları veritabanı güncellemesine aktar
     Object.keys(artislar).forEach(isim => {
         let artis = artislar[isim];
         guncellemeler[`oyuncular/${isim}/puan`] = (mevcutOyuncular[isim].puan || 0) + artis;
@@ -431,7 +446,7 @@ function oylamaBaslat() {
         list.innerHTML += `<button class="modal-item-btn" onclick="oylamaBitti('${p.isim}')">${p.isim} (${p.rol})</button>`;
     });
     document.getElementById("action-modal").style.display = "flex";
-    geceAdimi = 5; // bypass logic
+    geceAdimi = 5; 
 }
 
 function oylamaBitti(asilanIsim) {
@@ -461,9 +476,14 @@ function intikamciArayuzuGoster() {
     document.getElementById("avenger-modal").style.display = "flex";
 }
 function intikamciPas() { pencereKapat('avenger-modal'); }
+
+// YENİ: İntikamcı Soytarı Puan Mantığı Eklendi
 function intikamciVurdu(hedefIsim) {
     pencereKapat('avenger-modal');
-    let intikamciPuan = (mevcutOyuncular[hedefIsim].rol.includes("Vampir")) ? 5 : -5;
+    let hedefRol = mevcutOyuncular[hedefIsim].rol;
+    let dusmanMi = hedefRol.includes("Vampir") || hedefRol === "Soytarı";
+    let intikamciPuan = dusmanMi ? 5 : -5;
+    
     let guncellemeler = { [`oyuncular/${hedefIsim}/durum`]: "Ölü" };
     
     Object.values(mevcutOyuncular).filter(p=>p.rol==="İntikamcı").forEach(i => {
@@ -481,7 +501,6 @@ function skorTablosuGoster() {
     const list = document.getElementById("score-list"); 
     list.innerHTML = "";
     
-    // 1. Oynanmış (puan verilmiş) tüm turları tespit et
     let butunTurlar = new Set();
     let siraliOyuncular = Object.values(mevcutOyuncular).sort((a,b) => (b.puan||0) - (a.puan||0));
     
@@ -489,13 +508,11 @@ function skorTablosuGoster() {
         if(p.turPuanlari) Object.keys(p.turPuanlari).forEach(k => butunTurlar.add(k));
     });
 
-    // Turları sayısal olarak sırala (tur_1, tur_2, tur_4...)
     let turListesi = Array.from(butunTurlar).sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
 
     if(turListesi.length === 0) {
         list.innerHTML = "<p>Henüz kimse puan kazanmamış.</p>";
     } else {
-        // Tabloyu oluştur
         let html = `<div style="overflow-x:auto;"><table class="score-table"><thead><tr><th>Oyuncu</th>`;
         turListesi.forEach(t => { html += `<th>${t.split('_')[1]}. Tur</th>`; });
         html += `<th>Toplam</th></tr></thead><tbody>`;

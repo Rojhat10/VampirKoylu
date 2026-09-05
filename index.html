@@ -33,7 +33,7 @@
         <p id="hataMesaji" style="color: #ff6b6b; display: none;">Lütfen adınızı ve kodu girin!</p>
     </div>
 
-    <!-- 3. MODERATÖR KURULUM EKRANI (Yeni Roller ve Doktor Ayarlarıyla) -->
+    <!-- 3. MODERATÖR KURULUM EKRANI -->
     <div class="container" id="mod-setup" style="display: none;">
         <h2>Oyun Ayarları</h2>
         <input type="text" id="modRoomCode" placeholder="Oda Kodu (Örn: 1001)" maxlength="4">
@@ -44,21 +44,7 @@
             <label><input type="checkbox" id="doc-no-consecutive"> Üst üste aynı kişiyi kurtaramaz</label>
         </div>
 
-        <div class="settings-box">
-            <h3>Rol Dağılımı (Sayı)</h3>
-            <div class="role-grid">
-                <div class="role-input-group"><label>Vampir:</label><input type="number" id="c-vampire" value="1" min="1"></div>
-                <div class="role-input-group"><label>Alfa Vampir:</label><input type="number" id="c-alpha" value="0" min="0"></div>
-                <div class="role-input-group"><label>Doktor:</label><input type="number" id="c-doctor" value="1" min="0"></div>
-                <div class="role-input-group"><label>Büyücü:</label><input type="number" id="c-seer" value="1" min="0"></div>
-                <div class="role-input-group"><label>Şerif:</label><input type="number" id="c-sheriff" value="1" min="0"></div>
-                <div class="role-input-group"><label>İntikamcı:</label><input type="number" id="c-avenger" value="1" min="0"></div>
-                <div class="role-input-group"><label>Soytarı:</label><input type="number" id="c-jester" value="1" min="0"></div>
-                <div class="role-input-group"><label>Muhtar:</label><input type="number" id="c-mayor" value="1" min="0"></div>
-                <div class="role-input-group"><label>Gazi:</label><input type="number" id="c-veteran" value="1" min="0"></div>
-            </div>
-        </div>
-        <button onclick="odaKur()" style="background-color: #f9d342; color: #1a1a2e;">Odayı Aç</button>
+        <button onclick="odaKur()" style="background-color: #f9d342; color: #1a1a2e; margin-top: 15px;">Odayı Aç</button>
         <button onclick="ekranGoster('main-menu')" style="background-color: #555; margin-top: 10px;">Geri Dön</button>
     </div>
 
@@ -70,10 +56,26 @@
             <div>
                 <button onclick="geriAl('son_islem')" style="width: auto; padding: 5px 10px; font-size: 12px; background: #e67e22;">↩️ Geri Al</button>
                 <button onclick="skorTablosuGoster()" style="width: auto; padding: 5px 10px; font-size: 12px; background: #3f72af;">🏆 Skorlar</button>
-                <button onclick="botOyuncuEkle()" style="width: auto; padding: 5px 10px; font-size: 12px; background: #333; color: #888;">🤖</button>
+                <button onclick="botOyuncuEkle()" style="width: auto; padding: 5px 10px; font-size: 12px; background: #333; color: #888;">🤖 Bot Ekle</button>
             </div>
         </div>
         
+        <!-- YENİ: AKTİF ROL DÜZENLEME ALANI -->
+        <div class="settings-box" style="background-color: #1a1a2e; border: 1px solid #3f72af;">
+            <h3 style="color: #4caf50; font-size: 14px; margin-bottom: 10px;">Anlık Rol Ayarları (Tur ortasında değiştirip Dağıt diyebilirsin)</h3>
+            <div class="role-grid">
+                <div class="role-input-group"><label>Vampir:</label><input type="number" id="dash-vampire" value="1" min="0"></div>
+                <div class="role-input-group"><label>Alfa Vampir:</label><input type="number" id="dash-alpha" value="0" min="0"></div>
+                <div class="role-input-group"><label>Doktor:</label><input type="number" id="dash-doctor" value="1" min="0"></div>
+                <div class="role-input-group"><label>Büyücü:</label><input type="number" id="dash-seer" value="1" min="0"></div>
+                <div class="role-input-group"><label>Şerif:</label><input type="number" id="dash-sheriff" value="1" min="0"></div>
+                <div class="role-input-group"><label>İntikamcı:</label><input type="number" id="dash-avenger" value="1" min="0"></div>
+                <div class="role-input-group"><label>Soytarı:</label><input type="number" id="dash-jester" value="1" min="0"></div>
+                <div class="role-input-group"><label>Muhtar:</label><input type="number" id="dash-mayor" value="1" min="0"></div>
+                <div class="role-input-group"><label>Gazi:</label><input type="number" id="dash-veteran" value="1" min="0"></div>
+            </div>
+        </div>
+
         <div class="dashboard-controls" style="margin-top: 15px;">
             <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
                 <button onclick="yeniTurBaslat()" style="background-color: #4caf50; flex: 1;">Rol Dağıt</button>
@@ -117,31 +119,26 @@
             <h3 id="roleDisplay" style="display: none; margin-top: 15px; font-size: 24px; color: #f9d342;"></h3>
         </div>
 
-        <!-- Oyuncu Ekranı Skor Butonu -->
-        <button onclick="skorTablosuGoster()" style="background-color: #3f72af; margin-top: 20px;">🏆 Puan Durumunu Gör</button>
+        <!-- YENİ: ID eklendi, sadece Bekleme Salonunda görünecek -->
+        <button id="btn-player-score" onclick="skorTablosuGoster()" style="background-color: #3f72af; margin-top: 20px; display: none;">🏆 Puan Durumunu Gör</button>
         
         <button onclick="masadanKalk()" style="background-color: #ff4757; margin-top: 10px;">Masadan Kalk</button>
     </div>
 
     <!-- MODALLAR -->
-    <!-- Gece & Oylama Modalı -->
     <div id="action-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <span class="close-btn" onclick="pencereKapat('action-modal')">&times;</span>
             <h2 id="action-title">Seçim Yap</h2>
             <p id="action-desc">Kimi seçeceksin?</p>
-            
-            <!-- Alfa Vampir Özel Alanı -->
             <div id="alpha-area" style="display: none; background: #8e44ad; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
                 <label style="color: white; font-weight: bold;"><input type="checkbox" id="alpha-convert"> Öldürme, VAMPİRE DÖNÜŞTÜR (Alfa Yeteneği)</label>
             </div>
-
             <div id="action-list" class="modal-list"></div>
             <button id="btn-action-pass" onclick="geceSonrakiAdim(null)" style="background: #555; display: none;">Pas Geç</button>
         </div>
     </div>
 
-    <!-- İntikamcı Modalı -->
     <div id="avenger-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="border: 2px solid #ff4757;">
             <h2>⚠️ İntikamcı Öldü!</h2>
@@ -151,7 +148,6 @@
         </div>
     </div>
 
-    <!-- Turu Bitir Modalı -->
     <div id="end-round-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <span class="close-btn" onclick="pencereKapat('end-round-modal')">&times;</span>
@@ -162,7 +158,6 @@
         </div>
     </div>
 
-    <!-- Skor Modalı (Genişletildi) -->
     <div id="score-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 90%;">
             <span class="close-btn" onclick="pencereKapat('score-modal')">&times;</span>
