@@ -252,67 +252,75 @@ function manuelPuan(miktar) {
     });
 }
 
-// Bot ekleme (Sessizce ve anında veritabanına)
 function botOyuncuEkle() { 
     if(!aktifOdaKodu) return alert("Önce odayı kurmalısınız!");
     const rand = Math.floor(Math.random()*1000);
     const botID = "Oyuncu " + rand; 
-    db.ref(`odalar/${aktifOdaKodu}/oyuncular/${botID}`).set({ 
-        isim: botID, gosterilenIsim: botID, rol: "Belirlenmedi", durum: "Hayatta", puan: 0, isBot: true 
-    }); 
+    let yeniBot = { isim: botID, gosterilenIsim: botID, rol: "Belirlenmedi", durum: "Hayatta", puan: 0, isBot: true };
+
+    mevcutOyuncular[botID] = yeniBot;
+    renderModPanel();
+
+    db.ref(`odalar/${aktifOdaKodu}/oyuncular/${botID}`).update(yeniBot); 
 }
 
 function renderModPanel() {
-    const list = document.getElementById("player-list-mod");
-    const approvalList = document.getElementById("approval-list");
-    const approvalSec = document.getElementById("approval-section");
-    
-    list.innerHTML = ""; approvalList.innerHTML = "";
-    let onayBekleyenVar = false; let canliSayisi = 0;
-
-    Object.values(mevcutOyuncular).forEach(p => {
-        let displayName = p.gosterilenIsim || p.isim;
+    try {
+        const list = document.getElementById("player-list-mod");
+        const approvalList = document.getElementById("approval-list");
+        const approvalSec = document.getElementById("approval-section");
         
-        if(p.durum === "Onay Bekliyor") {
-            onayBekleyenVar = true;
-            approvalList.innerHTML += `
-                <div class="approval-item">
-                    <span>${displayName}</span>
-                    <div>
-                        <button onclick="oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')" style="background:#4caf50; padding:5px;">✔</button>
-                        <button onclick="oyuncuSil('${p.isim}')" style="background:#ff4757; padding:5px;">✖</button>
-                    </div>
-                </div>`;
-        } else {
-            if (p.durum === "Hayatta") canliSayisi++;
-            const sinif = p.durum === "Ölü" ? "olu" : (p.durum === "Pasif" ? "pasif" : "");
+        list.innerHTML = ""; approvalList.innerHTML = "";
+        let onayBekleyenVar = false; let canliSayisi = 0;
+
+        Object.values(mevcutOyuncular).forEach(p => {
+            if (!p || typeof p !== "object") return;
+
+            let displayName = p.gosterilenIsim || p.isim || "İsimsiz";
+            let safeIsim = String(p.isim).replace(/'/g, "\\'"); 
+            let safeDisplayName = String(displayName).replace(/'/g, "\\'");
             
-            let btnHtml = "";
-            if(p.durum === "Hayatta" || p.durum === "Ölü") {
-                btnHtml += `<button class="mini-btn" style="background:#e67e22;" onclick="event.stopPropagation(); oyuncuGuncelle('${p.isim}', 'durum', 'Pasif')">⏸</button>`;
-            } else if(p.durum === "Pasif") {
-                btnHtml += `<button class="mini-btn" style="background:#4caf50;" onclick="event.stopPropagation(); oyuncuGuncelle('${p.isim}', 'durum', 'Hayatta')">▶️</button>`;
-            }
-            btnHtml += `<button class="mini-btn" style="background:#c0392b;" onclick="event.stopPropagation(); if(confirm('${displayName} odadan atılsın mı?')) oyuncuSil('${p.isim}')">🗑</button>`;
-
-            let gosterilecekRol = rollerGizli ? (p.rol === "Belirlenmedi" ? "Belirlenmedi" : "***") : p.rol;
-            let gaziIkon = (p.gaziCani && !rollerGizli) ? ' (🛡️)' : '';
-
-            list.innerHTML += `
-                <div class="player-card ${sinif}" onclick="profilGoster('${p.isim}')">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            if(p.durum === "Onay Bekliyor") {
+                onayBekleyenVar = true;
+                approvalList.innerHTML += `
+                    <div class="approval-item">
+                        <span>${displayName}</span>
                         <div>
-                            <h4>${displayName}</h4>
-                            <p>Rol: <b>${gosterilecekRol}</b>${gaziIkon}</p>
-                            <p>Durum: ${p.durum}</p>
+                            <button onclick="oyuncuGuncelle('${safeIsim}', 'durum', 'Hayatta')" style="background:#4caf50; padding:5px;">✔</button>
+                            <button onclick="oyuncuSil('${safeIsim}')" style="background:#ff4757; padding:5px;">✖</button>
                         </div>
-                        <div class="mini-btn-group" style="flex-direction: column;">${btnHtml}</div>
-                    </div>
-                </div>`;
-        }
-    });
-    document.getElementById("oyuncuSayisi").innerText = canliSayisi;
-    approvalSec.style.display = onayBekleyenVar ? "block" : "none";
+                    </div>`;
+            } else {
+                if (p.durum === "Hayatta") canliSayisi++;
+                const sinif = p.durum === "Ölü" ? "olu" : (p.durum === "Pasif" ? "pasif" : "");
+                
+                let btnHtml = "";
+                if(p.durum === "Hayatta" || p.durum === "Ölü") {
+                    btnHtml += `<button class="mini-btn" style="background:#e67e22;" onclick="event.stopPropagation(); oyuncuGuncelle('${safeIsim}', 'durum', 'Pasif')">⏸</button>`;
+                } else if(p.durum === "Pasif") {
+                    btnHtml += `<button class="mini-btn" style="background:#4caf50;" onclick="event.stopPropagation(); oyuncuGuncelle('${safeIsim}', 'durum', 'Hayatta')">▶️</button>`;
+                }
+                btnHtml += `<button class="mini-btn" style="background:#c0392b;" onclick="event.stopPropagation(); if(confirm('${safeDisplayName} odadan atılsın mı?')) oyuncuSil('${safeIsim}')">🗑</button>`;
+
+                let gosterilecekRol = rollerGizli ? (p.rol === "Belirlenmedi" ? "Belirlenmedi" : "***") : p.rol;
+                let gaziIkon = (p.gaziCani && !rollerGizli) ? ' (🛡️)' : '';
+
+                list.innerHTML += `
+                    <div class="player-card ${sinif}" onclick="profilGoster('${safeIsim}')">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <h4>${displayName}</h4>
+                                <p>Rol: <b>${gosterilecekRol}</b>${gaziIkon}</p>
+                                <p>Durum: ${p.durum}</p>
+                            </div>
+                            <div class="mini-btn-group" style="flex-direction: column;">${btnHtml}</div>
+                        </div>
+                    </div>`;
+            }
+        });
+        document.getElementById("oyuncuSayisi").innerText = canliSayisi;
+        approvalSec.style.display = onayBekleyenVar ? "block" : "none";
+    } catch(e) { console.error("Çizim hatası:", e); }
 }
 
 function oyuncuGuncelle(isim, alan, deger) { db.ref(`odalar/${aktifOdaKodu}/oyuncular/${isim}`).update({ [alan]: deger }); }
@@ -368,6 +376,9 @@ function oyunBittiIsle(sonucTip) {
         guncellemeler["zaman"] = "Bekleme Salonu";
         guncellemeler["kurallar/hipnozKullandi"] = false;
         guncellemeler["kurallar/yargicKullandi"] = false;
+        // ALFA VAMPİR TİKİ DÜZELTİLDİ: Oyun bitince alfa kullanım limiti sıfırlanır!
+        guncellemeler["kurallar/alfaKullanimSayisi"] = 0;
+        
         db.ref(`odalar/${aktifOdaKodu}`).update(guncellemeler).then(() => alert(sonucTip === 0 ? "Tur iptal edildi." : "Oyun bitti, puanlar yansıdı."));
     }
 }
@@ -406,8 +417,30 @@ function yeniTurBaslat() {
 
         while(roller.length < aktifler.length) roller.push("Köylü");
         
+        // --- AKILLI KARIŞTIRMA (ANTI-STREAK) DÜZELTİLDİ ---
         aktifler = rolleriKaristir(aktifler);
         roller = rolleriKaristir(roller.slice(0, aktifler.length));
+
+        for(let i=0; i < aktifler.length; i++) {
+            let isim = aktifler[i];
+            let p = mevcutOyuncular[isim];
+            let atananRol = roller[i];
+
+            if(p && p.eskiRol && p.eskiRol === atananRol && atananRol !== "Köylü") {
+                // Bu kişiye aynı özel rol tekrar gelmiş, başka biriyle takas et.
+                for(let j=0; j < aktifler.length; j++) {
+                    let digerIsim = aktifler[j];
+                    let digerP = mevcutOyuncular[digerIsim];
+                    let digerRol = roller[j];
+                    
+                    if(i !== j && digerRol !== "Köylü" && (!digerP || digerP.eskiRol !== atananRol)) {
+                        roller[i] = digerRol;
+                        roller[j] = atananRol;
+                        break;
+                    }
+                }
+            }
+        }
 
         let guncellemeler = {};
         let istihbaratciVar = false;
@@ -426,18 +459,24 @@ function yeniTurBaslat() {
             else if (atananRol !== "Soytarı") masumListesi.push(isim);
         });
         
+        // --- İSTİHBARATÇI İPUCU HATASI DÜZELTİLDİ ---
         if(istihbaratciVar && vampirListesi.length > 0 && masumListesi.length > 0) {
-            let v = vampirListesi[Math.floor(Math.random() * vampirListesi.length)];
-            let m = masumListesi[Math.floor(Math.random() * masumListesi.length)];
-            let isimler = rolleriKaristir([v, m]); 
-            
-            let dV = mevcutOyuncular[isimler[0]]?.gosterilenIsim || isimler[0];
-            let dM = mevcutOyuncular[isimler[1]]?.gosterilenIsim || isimler[1];
-            let ipucuText = `Şüpheli Hareketler: ${dV} veya ${dM} ikilisinden biri kesinlikle VAMPİR!`;
-            
-            aktifler.forEach((isim, idx) => {
-                if(roller[idx] === "İstihbaratçı") guncellemeler[`oyuncular/${isim}/ipucu`] = ipucuText;
-            });
+            let istihbaratcilar = aktifler.filter((isim, idx) => roller[idx] === "İstihbaratçı");
+            let gercekMasumlar = masumListesi.filter(isim => !istihbaratcilar.includes(isim));
+
+            if(gercekMasumlar.length > 0) {
+                let v = vampirListesi[Math.floor(Math.random() * vampirListesi.length)];
+                let m = gercekMasumlar[Math.floor(Math.random() * gercekMasumlar.length)];
+                let isimler = rolleriKaristir([v, m]); 
+                
+                let dV = mevcutOyuncular[isimler[0]]?.gosterilenIsim || isimler[0];
+                let dM = mevcutOyuncular[isimler[1]]?.gosterilenIsim || isimler[1];
+                let ipucuText = `Şüpheli Hareketler: ${dV} veya ${dM} ikilisinden biri kesinlikle VAMPİR!`;
+                
+                aktifler.forEach((isim, idx) => {
+                    if(roller[idx] === "İstihbaratçı") guncellemeler[`oyuncular/${isim}/ipucu`] = ipucuText;
+                });
+            }
         }
         
         db.ref(`odalar/${aktifOdaKodu}`).once("value").then(s => {
@@ -580,10 +619,16 @@ function geceyiBitirVeHesapla() {
 
     if (geceGecmisi.buyucu) {
         let hRol = getRole(geceGecmisi.buyucu);
-        if(hRol.includes("Vampir") || hRol === "Lanetli") {
+        // --- BÜYÜCÜ VE LANETLİ PUAN HATASI DÜZELTİLDİ ---
+        if(hRol.includes("Vampir")) {
             Object.values(mevcutOyuncular).filter(p=>p && p.rol==="Büyücü").forEach(b => addScore(b.isim, 3));
+            alert("🔮 Büyücü vampiri buldu!");
+        } else if (hRol === "Lanetli") {
+            // Puan KESİNLİKLE verilmiyor, sadece bildirim gidiyor.
             alert("🔮 Büyücü vampiri buldu! (Ya da Lanetli'ye denk geldi...)");
-        } else alert("Büyücü vampiri bulamadı.");
+        } else {
+            alert("Büyücü vampiri bulamadı.");
+        }
     }
 
     if (geceGecmisi.vampir) {
@@ -596,7 +641,7 @@ function geceyiBitirVeHesapla() {
         }
 
         if (geceGecmisi.alfaKullandi) {
-            alert(`🧛 Alfa Yeteneği Kullanıldı! ${getName(vHedef)} artık bir Vampir!`);
+            alert(`🧛 Alfa Yeteneği Kullanıldı! ${getName(vHedef)} artık kalıcı olarak bir Vampir!`);
             guncellemeler[`oyuncular/${vHedef}/rol`] = "Vampir";
             guncellemeler["kurallar/alfaKullanimSayisi"] = (odaKurallari.alfaKullanimSayisi || 0) + 1;
             kopyaciKontrolEt([vHedef], guncellemeler); 
