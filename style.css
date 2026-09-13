@@ -14,9 +14,8 @@ button:hover { opacity: 0.9; }
 .status-box { background-color: #0f3460; padding: 15px; border-radius: 8px; margin-top: 15px; }
 .role-btn { background-color: #3f72af; padding: 20px; font-size: 18px; user-select: none; -webkit-user-select: none; }
 
-/* OYUNCU KARTLARI */
 .player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-.player-card { background-color: #0f3460; padding: 12px; border-radius: 8px; text-align: left; border: 2px solid #1a1a2e; position: relative; }
+.player-card { background-color: #0f3460; padding: 12px; border-radius: 8px; text-align: left; border: 2px solid #1a1a2e; position: relative; cursor: pointer; }
 .player-card h4 { margin: 0 0 5px 0; color: #f9d342; font-size: 15px; }
 .player-card p { margin: 2px 0; font-size: 12px; color: #ccc; }
 .mini-btn-group { display: flex; gap: 5px; margin-top: 5px; }
@@ -26,7 +25,6 @@ button:hover { opacity: 0.9; }
 .player-card.olu h4 { color: #ff6b6b; }
 .player-card.pasif { opacity: 0.5; background-color: #555; border-style: dashed; }
 
-/* MODALLAR */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { position: relative; background: #16213e; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
 .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: white; cursor: pointer; font-weight: bold; }
@@ -36,7 +34,6 @@ button:hover { opacity: 0.9; }
 .modal-item-btn:hover { background: #3f72af; }
 .approval-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 8px; margin-bottom: 5px; border-radius: 5px; }
 
-/* YENİ SKOR TABLOSU TASARIMI */
 .score-table { width: 100%; border-collapse: collapse; margin-top: 10px; color: white; font-size: 14px; min-width: 300px; }
 .score-table th, .score-table td { border: 1px solid #333; padding: 8px; text-align: center; }
 .score-table th { background-color: #0f3460; color: #f9d342; font-size: 12px; white-space: nowrap; }
